@@ -1,4 +1,4 @@
-## Introduction to R Workshop (July 22, 2019)
+## Introduction to R Workshop (July 23, 2019)
 
 # Editors: Anisha Khosla, Nichole Bouffard, Stephanie Simpson
 
@@ -61,6 +61,10 @@ library(knitr)
 ## Commonly used variables in R
 
 # numeric
+# why '<-' and not '=' for variable assignment? -- indicates the difference between function arguments and assignation
+# x <- seq(1,10,by=2)
+# see https://www.r-bloggers.com/why-do-we-use-arrow-as-an-assignment-operator/
+
 n <- 1 
 # str() displays the type of object
 str(n) 
@@ -79,15 +83,15 @@ str(l)
 
 # converting numeric to character
 as.numeric(c)
-
 as.character(n)
 
 ## Getting help
 
 help.start()   # general help
-help(print)    # help about function print
-?print         # same as above
-example(print) # shows an example of function print
+help(mean)    # help about function print
+?mean         # same as above
+example(mean) # shows an example of function print
+
 
 ## Data Types in R
 
@@ -107,15 +111,23 @@ max(my_vector)
 
 ## Factors
 
-# factos are grouping variables in data
+# factors --how catgorical variables are strored in R
 
-as.factor(n)
 groups <- factor(c("red","green", "red", "green"))
+groups
 levels(groups)
+nlevels(groups)
+
+# why is it imp to assign?
+groups<- as.character(groups)
+
+groups<- as.factor(groups)
 
 ## Setting your working directory
 
-# Set the location i.e.working directory.  This is where R will look for files you want to load. 
+# Set the location i.e.working directory.  This is where R will look for files you want to load.
+getwd()
+
 setwd()
 
 # sample working directory for MAC users
@@ -138,9 +150,9 @@ str(coffeeData)
 
 # different ways of exploring your data
 summary(coffeeData)
-dim(coffeeData)
+dim(coffeeData) # number of rows and columns
 head(coffeeData)
-names(coffeeData)
+names(coffeeData) # name of columns
 
 # to select/view a single column
 coffeeData$participantID
@@ -155,6 +167,8 @@ coffeeData$participantID[1:3]
 
 
 ## Pipe operator
+
+# insert results from prev step as output for the next step
 # inserts the results from the previous function into the next function
 # it allows us to do step-by-step actions in an intuitive way
 # shortcut is cmd/ctrl + shift + m
@@ -165,6 +179,23 @@ x <- 1:4
 sum(x) # without pipe
 
 x %>% sum() # with pipe
+
+# back to our dataset...
+coffeeData$participantID
+
+# distinct() shows all distinct values in a column
+coffeeData %>% 
+  distinct(participantID)
+
+# count() shows the number of distinct values in a column
+coffeeData %>% 
+  count(participantID)
+
+count(coffeeData$participantID) #with base R
+
+# count for multiple columns
+coffeeData %>% 
+  count(participantID, accuracy)
 
 # filter--we can define a set of conditions that we want to filter the rows of our data frame by
 coffeeData %>% 
@@ -181,27 +212,13 @@ coffeeData %>%
 # why pipe? 
 # note: arrange() sorts data
 
-arrange(filter(select(coffeeData, participantID, contains('uent'), accuracy), participantID=='pilot'), accuracy)
-
 coffeeData %>% 
   select(participantID, contains('uent'), accuracy) %>% 
   filter(participantID=='pilot') %>% 
   arrange(accuracy)
 
-## Data Exploration
 
-# distinct() shows all distinct values in a column
-coffeeData %>% 
-  distinct(participantID)
-
-# count() shows the number of distinct values in a column
-coffeeData %>% 
-  count(participantID)
-
-#count(coffeeDataTidy$participantID) with base R
-
-coffeeData %>% 
-  count(participantID, group)
+arrange(filter(select(coffeeData, participantID, contains('uent'), accuracy), participantID=='pilot'), accuracy)
 
 # HAVE A BREAK
 
