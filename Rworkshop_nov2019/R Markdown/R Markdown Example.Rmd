@@ -1,0 +1,101 @@
+---
+title: "R Markdown Basics"
+author: "Stephanie Simpson"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_document:
+    highlight: textmate
+    theme: paper
+    toc: yes
+    toc_float: yes
+  pdf_document:
+    toc: yes
+editor_options:
+  chunk_output_type: console
+---
+
+## What is R Markdown?
+
+This is a chunk. This chunk tells us that want to show the output of all the other chunks, unless otherwise specified. You can name your chunks whatever you want! It becomes helpful during knitting so you can track your process.
+
+Click on the mini green "play button" to run the chunk individually.
+
+```{r chunk #1}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+R Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. This allows you to easily share your work with others! They don't have to run your entire code in order to the see the analysis or data analysis that you conducted.
+
+For more details on using R Markdown see <http://rmarkdown.rstudio.com> or download the "cheat sheet" at: <https://rstudio.com/resources/cheatsheets/>
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
+
+## Set up
+
+```{r load packages, include = FALSE}
+suppressWarnings(library(tidyverse))
+suppressWarnings(library(afex))
+suppressWarnings(library(lme4))
+suppressWarnings(library(lmerTest))
+suppressWarnings(library(emmeans))
+suppressWarnings(library(ggplot2))
+suppressWarnings(library(cowplot))
+```
+
+To make a chunk quickly, us the short cut: command, option, i.
+
+```{r load in data}
+stroop<-read.csv('/Users/Stephanie/Dropbox/Baycrest_Rworkshop/PART 2/stroop_data.csv')
+```
+
+```{r clean data}
+stroop_clean <- stroop %>% filter (rt < 1500)
+
+stroop_clean %>% 
+  group_by(participant) %>% 
+  summarise(numTrials=length(trial_number))
+```
+
+## Plots
+
+```{r scatterplot, echo=FALSE}
+stroop_clean %>% 
+  group_by(participant, stimulus_congruency) %>% 
+  summarise(mean_rt = mean(rt)) %>% 
+  ggplot(aes(x = stimulus_congruency, y = mean_rt, color = stimulus_congruency)) +
+  geom_point(shape = 19, alpha = 0.4, size = 2.5, 
+             position = position_jitter(width = 0.1)) +
+  stat_summary(fun.data=mean_se, fun.args = list(mult=1), 
+               geom="errorbar", color="black", width=0.05) +
+  stat_summary(fun.y = mean, geom = "point", size = 3, color = "black") +
+  labs(title = "Scatterplot",
+         subtitle = "Including participant-level data",
+         x = "Condition",
+         y = "Mean Reaction Time (ms)") +
+  scale_x_discrete(labels = c("Congruent", "Incongruent")) +
+  theme_cowplot(12) +
+  theme(legend.position = "none", 
+        axis.title = element_text(face = "bold", size = 14))
+```
+
+* You can change the echo paramaters to either include or exclude the code in your final output! This is useful depending on which audience you are trying to cater to (i.e., coders vs. non-coders)
+ + `echo = FALSE` prevents printing of the R code that generated the plot
+ + `include = FALSE` prevents code and output from being seen in the final file
+ 
+## Analysis
+ 
+Question: Controlling for the random variation across participants (and tasks), how does the congruency of the trial and accuracy on the trial predict reaction time?
+
+```{r mixed model}
+lmer(rt ~ stimulus_congruency*accuracy+(1|participant), data=stroop_clean) %>% summary
+```
+ 
+## Pros and Cons of Markdown
+ - "stream of consciousness" while coding (so no more commenting out with #)
+ - easy to share your work (good for open science)
+ - easier to run chunks than highlight lines of code
+ - can sometimes be "buggy"
+ - might not be great for large datasets because it takes too long to knit
+ 
+## Acknowledgments
+I would like to thank Carina Fan, a PhD student in Brian Levine's lab, for showing me everything thing there is to know about R Markdown (and pretty much R in general)
