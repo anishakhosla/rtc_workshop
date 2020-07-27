@@ -1,0 +1,196 @@
+---
+title: "R Workshop Session 2"
+author: "Nichole Bouffard"
+date: "7/22/2020"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: github
+---
+
+## Description
+
+This is a printable version of the script we'll be going over in today's session. Feel free to print it out and follow along. We will be covering how to run anovas and t tests for the single item recognition data. We will use the package 'afex' to run anovas and plot the effects.
+
+## First load in the three packages below
+Note, if you don't already have them downloaded you can uncomment the "install.packages" lines (delete #) and run those first, then load them using the library() line.
+
++ tidyverse - useful datawrangling functions, piping, and ggplot 
+
++ afex - this is package I like to use to run my stats. It has a function "aov_ez" that I use instead of R's built in anova function "aov". It takes a more intutive input compared the aov formulas 
+
++ emmeans - for running the pairwise comparisons (t tests) after the anova
+ 
+```{r setup, message = FALSE, warning=FALSE}
+# install.pacakges(tidyverse)
+library(tidyverse)
+# install.packages(afex)
+library(afex)
+#install.packages(emmeans)
+library(emmeans)
+```
+
+## Read in data
+
+```{r readData}
+sirdat <-read_csv('/Users/nicholebouffard/Dropbox/Baycrest_Rworkshop/2020/part2/SngItmRec.csv')
+```
+
+I'm using read_csv here instead of read.csv. You must have the tidyverse loaded first before you can use read_csv, but it reads your data into a tibble way quicker and more efficient than reading your data into a data.frame using read.csv
+
+# Data wrangle from wide to long format (long = one observation per row)
+
+```{r wrangleData}
+sirdat <- sirdat %>% #shortcut to pipe = command+shift+M
+  gather(condition, hit_minus_fa,4:6)
+```
+
+# Look at how the different variables are categorized. Change grouping factors to factors
+
+```{r structure}
+str(sirdat)
+sirdat$subid <- as.factor(sirdat$subid)
+sirdat$stimulus<- as.factor(sirdat$stimulus)
+sirdat$group <- as.factor(sirdat$group)
+sirdat$condition <- as.factor(sirdat$condition)
+str(sirdat)
+```
+
+## DESCRIPTIVE STATISTICS
+Calculate number of subjects
+
+```{r sampleSize}
+# Younger Adults
+nYA <- length(unique(sirdat$subid[sirdat$group == 'YA'])) #31
+nYA
+
+# Older Adults
+OA <- sirdat %>%  
+  filter(group == 'OA') 
+nOA <- length(unique(OA$subid)) #28
+nOA
+```
+
+# Plot Data 
+
+```{r qplot}
+#Qplot
+qplot(x=condition, y=hit_minus_fa, data=sirdat)
+# Add boxplot
+qplot(x=condition, y=hit_minus_fa, data=sirdat, geom='boxplot')
+
+```
+
+# Compute means, standard deviation, standard error, range, median
+
+```{r mean}
+sirdat_summary<- sirdat %>% 
+  group_by(condition, stimulus, group) %>% 
+  summarise(mean = mean(hit_minus_fa), sd = sd(hit_minus_fa))
+
+# Compute standard error
+sirdat_summary <- sirdat_summary %>% 
+  mutate(n = ifelse(group == 'YA', nYA, nOA)) %>% 
+  mutate(se = sd/sqrt(n))
+
+# Range, median
+range(sirdat$hit_minus_fa)
+median(sirdat$hit_minus_fa)
+```
+
+# Check balance with ezDesign
+
+```{r check}
+#install.packages('ez')
+library(ez)
+ezDesign(sirdat, x=subid, y=condition)
+```
+
+## ANOVA 2x2x3 (group, stimulus, condition)
+
+```{r model1}
+# This is something I like to run at the top of my scripts. It basically sets up your environment to do contrast coding so your contrasts sum to zero (the default in R is not to do this)
+set_sum_contrasts()
+
+# Model 1
+mdl1<-aov_ez(id = 'subid',
+             dv = 'hit_minus_fa',
+             data = sirdat,
+             between = 'group',
+             within = c('condition', 'stimulus'))
+
+# print the output of the anova
+mdl1
+
+```
+
+# Post hoc t tests
+
+```{r tTest1}
+# You can play around with this and add different variables to contrast by
+pairs(emmeans(mdl1, c('condition')))
+pairs(emmeans(mdl1, 'stimulus'))
+pairs(emmeans(mdl1, c('condition','stimulus')))
+# Bonferroni adjustment
+pairs(emmeans(mdl1, c('condition')), adjust='bonferroni')
+
+# Can see how the contrasts were coded using coef()
+coef(pairs(emmeans(mdl1, c('condition'))))
+```
+
+## Object Recognition ANOVA 2x3 (group, condition)
+
+```{r model2}
+# Filter only object data
+sirdat_object <- sirdat %>% 
+  filter(stimulus == 'object')
+
+mdl2<-aov_ez(id = 'subid',
+             dv = 'hit_minus_fa',
+             data = sirdat_object,
+             between = 'group',
+             within = c('condition'),
+             anova_table= list(es = "pes"))
+
+# print the table
+mdl2
+# Plot effects
+afex_plot(mdl2, "condition","group")
+```
+
+# Posthoc t tests 
+
+```{r tTest2}
+pairs(emmeans(mdl2, c('condition')))
+pairs(emmeans(mdl2, c('group')))
+pairs(emmeans(mdl2, c('condition','group')))
+```
+
+## Scene Recognition ANOVA 2x3 (group, condition)
+
+```{r model3}
+# Filter only scene data
+sirdat_scene <- sirdat %>% 
+  filter(stimulus == 'scene')
+
+mdl3<-aov_ez(id = 'subid',
+             dv = 'hit_minus_fa',
+             data = sirdat_scene,
+             between = 'group',
+             within = c('condition'),
+             anova_table= list(es = "pes"))
+
+# print table
+mdl3
+# Plot effects
+afex_plot(mdl3, "condition","group")
+```
+
+# Posthoc t tests
+
+```{r tTest3}
+pairs(emmeans(mdl3, c('condition')))
+pairs(emmeans(mdl3, c('group')))
+pairs(emmeans(mdl3, c('condition','group')))
+```
+

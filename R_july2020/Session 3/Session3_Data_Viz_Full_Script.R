@@ -1,0 +1,280 @@
+# R Workshop: Session 3 on Data Visualization
+  ## Date: July 24, 2020
+  ## Author: Stephanie Simpson (ssimpson@research.baycrest.org)
+  ## This script uses ggplot2 to create three different kinds of figures: 1. bar plot, 2. box plot, and 3. scatterplot
+
+#--------------------------------------#
+
+# LOAD PACKAGES
+  
+# Download the following packages in order to run this script
+
+library(readr) # for reading in csv files
+library(tidyverse) # for general coding + includes ggplot2 which we need for graphing
+library(ggthemes) # for fun ggplot themes
+library(cowplot) # another fun add-on to ggplot
+library(gridExtra) # for arranging plots together
+
+# As a reminder, these packages need to be installed already before they can be added here. If they haven't been installed yet, you can do it by uncommenting and running this line of code. This will allow you to install multiple packages at once.
+# install.packages(c("readr", "tidyverse", "ggthemes", "cowplot", "gridExtra"))
+
+#--------------------------------------#
+
+# LOAD DATA
+
+# Load in the data by using the read_csv function (which calls on the readr package)
+# To run this script, we are going to use Nichole's single item recognition data (in long format)
+
+# IMPORTANT: you will need to *change this directory* to match the one on your personal computer
+  ## i.e., you need to tell R where it should go and grab your data csv file
+
+# this allows us to load in our data and call it "sirdat"
+
+sirdat <-read_csv('~/Dropbox/Baycrest_Rworkshop/2020/SngItmRec_Long.csv') # change this path to match your personal directory
+
+#--------------------------------------#
+
+# VIEW DATA
+
+# Make sure the data (which we called sirdat) looks correct before continuing
+
+View(sirdat)
+
+#--------------------------------------#
+
+# WHAT IS GGPLOT?
+
+# ggplot2 is a system for creating graphics in R and is one of the core packages in the tidyverse
+# ggplot 2 is all about layering!
+  ## the idea is that you build your graph by literally adding different components to your figure, one line at a time
+    ### we first tell the function ggplot() which data we would like to visualize
+    ### and then add layers like:
+     #### aesthetic properties to represent variables - aes(), 
+     #### geoms to represent data points - e.g., geom_point(), 
+     #### scales - e.g., scale_colour_brewer()
+
+# See https://ggplot2.tidyverse.org/ for more information
+
+#--------------------------------------#
+
+# PLOT 1: BAR PLOT
+
+sirdat %>%
+  ggplot(aes(x = condition, # tells R what variable will be plotted on the x axis
+             y = hit_minus_fa, # tells R what variable will be plotted on the y axis
+             fill = group)) # tells R how to assign colour to our bars (in this case, by the group variable)
+
+# This shows us the "skeleton" of our plot, but we haven't added any of the actual data points to it yet
+# We can do this by adding stat_summary
+# stat_XX is an alternative way to build layers - it will add transformations of the original data set
+
+bar_plot <- sirdat %>% # first, name the plot to make it easier to add featurs later on
+  ggplot(aes(x = condition, 
+             y = hit_minus_fa, 
+             fill = group)) +
+  # remember to use fill = for bar graphs!
+  stat_summary(fun.y = mean, # this  function will output the mean values of your y variable
+               geom = "bar", # rather than adding a separate geom, we can just place it within stat_summary
+               width = 0.69, # change the width of your individual bars
+               position = position_dodge(width = .9)) # changes how close the bars are positioned next to each other
+                                                      # (smaller # = closer together)
+
+bar_plot # call the plot to display it
+
+# To make our graph "manuscript-ready", we need to add some measure of effect size, labels, and change the colours
+# It would also be nice to display the accuracy rate by stimulus types
+# To do this, we can apply a facet wrap
+  ## This allows you to separate your data into subsets and then plot them all together
+  ## http://www.cookbook-r.com/Graphs/Facets_(ggplot2)/
+
+bar_plot + stat_summary(fun.data = mean_se, # this function will be applied to all of the data
+                        geom = "errorbar", # tells ggplot we want to add errorbars
+                        width = 0.09, # width of "ticks"
+                        position = position_dodge(width = 0.9)) + # this needs to match the witdth of your bars so that the errorbars are aligned
+  facet_wrap(~stimulus) + # facets will split up your figure by different variables
+  # scale_fill_manual("Group", values = c("darkgreen", "darkolivegreen3")) +
+  scale_fill_brewer("Group", palette = "Accent") + # change the colour
+  labs(title = "Figure 1. Bar Graph", # add an overall title
+       x = "Condition", # add a title to the x axis
+       y = "Hit - False Alarm") + # add a title to the y axis
+  theme(legend.position = "bottom") # move the legend to the bottom
+
+#--------------------------------------#
+
+# THEMES
+
+# I'm currently using the built-in gpplot2 themes, but we can change this as well!
+    # For instance, we can two other packages called cowplot (https://cran.r-project.org/web/packages/cowplot/vignettes/introduction.html)
+    # or ggthemes (https://yutannihilation.github.io/allYourFigureAreBelongToUs/ggthemes/)
+
+bar_plot + 
+  # theme_bw()
+  # or try something with ggthemes!
+  # theme_few()
+  theme_cowplot()
+
+# Notice here that R is displaying the older version of the barplot
+# If we want to see our more polished version, we need to override the original bar_plot...
+
+bar_plot <- bar_plot +
+  stat_summary(fun.data = mean_se, 
+               geom = "errorbar",
+               width = 0.09,
+               position = position_dodge(width = 0.9)) +
+  facet_wrap(~stimulus) + 
+  # scale_fill_manual("Group", values = c("darkgreen", "darkolivegreen3")) +
+  scale_fill_brewer("Group", palette = "Accent") +
+  labs(title = "Figure 1. Bar Graph",
+       x = "Condition",
+       y = "Hit - False Alarm") +
+  theme(legend.position = "bottom")
+
+bar_plot
+
+#--------------------------------------#
+
+# PLOT 2: BOX PLOT
+
+# What is the purpose of a box plot? (https://towardsdatascience.com/understanding-boxplots-5e2df7bcbd51)
+  ## box represents the IQR
+  ## middle line represents the median
+  ## outer lines indicate the minimum and maximum (range)
+  ## outliers will appear as points outside the range
+
+box_plot <- sirdat %>%
+  # drop_na(hit_minus_fa) %>% 
+  filter(group == "YA") %>% # this selects only the YA subjects in the group factor
+  ggplot(aes(x = condition, # variable that is plotted on x axis
+             y = hit_minus_fa, # variable that is plotted on y axis
+             fill = stimulus)) + # how to colour (or fill in) the boxes
+  geom_boxplot(varwidth = TRUE) # adding a box plot geom
+  # when varwidth = T, boxes are drawn with widths proportional to the square-root of the # of observations in the groups
+
+box_plot
+
+# Again, let's spice this up! This line of code will:
+  ## modify the appearance of outliers
+  ## add a horizontal line
+  ## create labels
+  ## change colours
+  ## label and reposition the legend
+
+box_plot <- box_plot +
+  geom_boxplot(outlier.colour = "red", # modify the appearance of outliers
+               outlier.shape = 8,
+               outlier.size = 2) + 
+  # scale_y_discrete(limits = c(0, 0.5, 1, 1.5)) +
+  geom_hline(yintercept=0, # placement
+             linetype="dashed", # changes the style of the line
+             color = "gray") + # add a horizontal line
+  labs(title = "Figure 2. Box Plot", 
+       subtitle = "Dots represent potential outliers", # add subtitles
+       x = "Condition",
+       y = "Hit - False Alarm") +
+  scale_fill_manual("Stimulus", # label the legend
+                    values = c("darkgreen", "darkolivegreen3")) + # manually change colours
+  theme(legend.position = "bottom") + # move legend
+  theme_minimal() # add a general theme
+
+box_plot
+
+#--------------------------------------#
+
+# PLOT 3: SCATTERPLOT
+
+# Let's try one of R's built-in datasets called iris
+  ## What is iris?
+?iris
+
+## Scatterplot A
+
+# base of the scatterplot
+scatterplot_base <- iris %>% 
+  ggplot(aes(x = Petal.Length, # variable plotted on x axis
+             y = Petal.Width, # variable on y axis
+             color = Species)) + # change colour based on species of flower
+  geom_point(alpha = .5, # alpha will adjust how translucent your points are (lower value = faded colour)
+             size = 2, # change the size of your points
+             shape = 4) # change the shape, there are many different kinds to choose from
+
+scatterplot_base
+
+# add a single linear trend line to this plot with geom_smooth
+# this helps better visualize the pattern in your data
+scatterplot <- scatterplot_base + 
+  geom_smooth(method = "lm", # this will change how the line is smoothed (e.g., glm, loess, gam)
+              size = 1, # thickness of line
+              # aes(fill=Species),
+              color = "black", 
+              show.legend = FALSE, # removes the line legend from the display
+              se = TRUE,# adds SE to line
+              alpha = 0.3) # changes transparency of the line 
+
+scatterplot
+
+# Change the axes labels
+
+scatterplot + 
+  scale_x_continuous(breaks = c(1, 3, 5, 7), # how to break up values displayed on the x axis
+                     labels = c("one", "three", "five", "seven")) # what will actually be displayed
+
+## Scatterplot B (with multiple trendlines)
+
+# create trendlines for each species by adding an aesthetic to geom_smooth
+scatterplot_base +
+  geom_smooth(method = "lm", 
+              alpha = 0.1, 
+              size = 1, 
+              aes(fill=Species), # this adds a line to each subset of data (by Species)
+              # color = "black", 
+              show.legend = FALSE, 
+              se = TRUE)
+
+# Apply what you've learned
+  ## How would you add some labels?
+  ## How would you change the theme to make the data more visible?
+  ## How would you reposition the legend to the top of your figure?
+
+scatterplot +
+  labs(title = "Iris Scatterplot",
+       y = "Petal Width (cm)",
+       x = "Petal Length (cm)") +
+  theme_cowplot(font_size = 12) +
+  theme(legend.position = "top")
+
+#--------------------------------------#
+
+# OTHER TIPS
+
+## Combine plots
+
+# using the :: allows you to call the package without downloading it (though it must be installed)
+gridExtra::grid.arrange(box_plot, # left plot
+                        scatterplot, # right plot to join
+                        ncol = 2) # side by side orientation
+
+gridExtra::grid.arrange(box_plot, 
+                        scatterplot, 
+                        ncol = 1) # vertical orientation
+
+## Save your figures 
+
+ggsave("figure1.png", # title of saved image
+       plot = bar_plot, # if you don't specify the plot, then it will automatically save the last plot you loaded
+       path = "~/Dropbox/Baycrest_Rworkshop/2020/part3/figures", # change this path for your personal use
+       dpi = 300, # clarity of image
+       width = 6, # image width
+       height = 6, # image height
+       units = "in") # in = inches
+
+#--------------------------------------#
+
+# MORE CUSTOMIZATIONS 
+
+  ## Change the shape of your points - https://www.datanovia.com/en/blog/ggplot-point-shapes-best-tips/
+  ## Change the colour - http://www.sthda.com/english/wiki/ggplot2-colors-how-to-change-colors-automatically-and-manually#use-wes-anderson-color-palettes
+  ## R color sheet - http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf## ggthemes = https://yutannihilation.github.io/allYourFigureAreBelongToUs/ggthemes/
+  ## ggplot2 cheatsheet - https://rstudio.com/wp-content/uploads/2015/03/ggplot2-cheatsheet.pdf
+  ## R for Data Science chapter on Data visualisation - https://r4ds.had.co.nz/data-visualisation.html
+
+# Please see the resource list in our Google Drive for additional helpful sites!
